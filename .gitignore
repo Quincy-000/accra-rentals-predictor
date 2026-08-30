@@ -1,6 +1,11 @@
-venv/
+# throwaway exploration probes (repo root)
+_*.py
+# vim swap files
+*.swp
+# python
 __pycache__/
 *.pyc
+.venv/
+venv/
+# browser binary (WSL2 convenience download)
 *.deb
-data/raw/
-.env
