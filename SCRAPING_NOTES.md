@@ -76,7 +76,9 @@ cards = [r for r in soup.select('div[id^="feli"]') if not r["id"].endswith("_clo
   `mQpagejs('pgN', element)` directly via `execute_script` for N = 2, 3, 4, …
 - `mQpagejs` in a *fresh* session fetches slice N only (no accumulation across
   sessions); within one session the DOM **does** accumulate cards, so dedupe by id
-  after every slice. Stop when a slice adds 0 new ids (first check: pg2 may add 0–3).
+  after every slice. Stop guard: **2 consecutive** slices with 0 new ids — a single
+  quiet slice is normal (slice 2 often adds 0–3). Live-verified: slice 2 = 0 new,
+  slice 3 = +14.
 - Direct POST to `/filter2/selected` without a browser session returned HTML but
   0 cards (session/cookie-gated) — **do not rely on plain requests; use Selenium.**
 - The `/resimp` POSTs fired on every page are favourite-icon tracking — ignore them.
@@ -101,8 +103,16 @@ cards = [r for r in soup.select('div[id^="feli"]') if not r["id"].endswith("_clo
 ## Code layout
 - `scraper/parser.py` — `parse_card(row)`, `parse_page(html)`, plus pure helpers
   (`parse_price`, `to_monthly`, `parse_area_m2`, `parse_neighborhood`).
-- `tests/test_parser.py` — 46 fixture-based tests, no network. `./venv/bin/python -m pytest`
-- Fixtures: `data/fixtures/search-page1.html` (raw copy in `data/raw/`).
+- `scraper/crawl.py` — `crawl_slices(fetch_slice, ...)`: browser-agnostic slice
+  loop, dedupe by id, stop after 2 consecutive 0-new slices.
+- `scripts/crawl_listings.py` — live Selenium crawl → `data/listings.json`
+  (`--csv` for CSV). Local-only, never CI. Full run ≈ 222 slices ≈ 30 min.
+- `tests/test_parser.py` (46 tests), `tests/test_crawl.py` (6 tests) — fixture
+  based, no network. `./venv/bin/python -m pytest`
+- Fixtures: `data/fixtures/search-page1..4.html` (cumulative click-session
+  captures) and `data/fixtures/slice-1/2/3/12.html` (clean single-slice captures
+  — use these for anything slice-dependent; the search-pageN files carry DOM
+  accumulation from earlier slices).
 - Live integration test stays local-only, never in GitHub Actions.
 
 ## Exploration scripts (repo root, throwaway)
