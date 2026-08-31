@@ -79,9 +79,30 @@ cards = [r for r in soup.select('div[id^="feli"]') if not r["id"].endswith("_clo
   after every slice. Stop guard: **2 consecutive** slices with 0 new ids — a single
   quiet slice is normal (slice 2 often adds 0–3). Live-verified: slice 2 = 0 new,
   slice 3 = +14.
+- **Slice 2's "0 new" is an ordinary quiet page, not carousel repetition.**
+  Verified 2026-08-30, three single-session runs (sweep, nextloop, live probe):
+  slice 2 serves the *identical* listing set as slice 1 — same grid ids, same 5
+  carousel ids, zero migrations. Across *fresh* sessions the carousel composition
+  differs (rotates between 263030/465033/465037/472400/472452/472704), and when a
+  slot rotates, the swapped-in id is genuinely new — fresh slice 2 added 263030,
+  never before seen. One exception observed (pa2-click run): grid swapped
+  469447→472400, where 472400 had sat in page-1's carousel — net 0 new because the
+  migrated id was already seen. Either way, slice-2 0-new never means exhausted;
+  the 2-consecutive guard is what makes the loop safe.
 - Direct POST to `/filter2/selected` without a browser session returned HTML but
   0 cards (session/cookie-gated) — **do not rely on plain requests; use Selenium.**
 - The `/resimp` POSTs fired on every page are favourite-icon tracking — ignore them.
+
+## Dataset snapshot (capped crawl, 2026-08-30)
+`./venv/bin/python scripts/crawl_listings.py --max-slices 14 --csv` → `data/listings.json`/`.csv`:
+**226 unique listings** (design target 150–300), 1.8 min, 129 listings/min.
+Coverage: id/url/title/price/period/monthly/neighborhood/furnished/featured 226/226;
+beds 225/226, baths 225/226 (two separate source-side gaps: 472094 card renders no
+bath count; 264311 title has no bedroom number); garages 157/226, area_m2 95/226
+(optional fields). Price periods: 205 month / 17 day / 4 week. 82 distinct
+neighborhoods. Slice pattern: slice 1 = 36, slice 2 = 0 new (quiet), slices 3–14
+= +16 each — a steady 16/slice holds to at least slice 14, so the ~222-slice cap
+for the full 3.5k set remains plausible.
 
 ## Data gotchas
 1. **Price unit varies (`/ day`, `/ month`)** — page 1 has 5 daily listings. Normalize
