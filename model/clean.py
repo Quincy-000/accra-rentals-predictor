@@ -43,6 +43,21 @@ def clean_area(area_m2, beds, per_bed_cap=160):
     return area_m2
 
 
+def clean_baths(baths, max_reasonable=10):
+    if pd.isna(baths):
+        return baths
+    if baths > max_reasonable:
+        return None
+    return baths
+
+
+def group_rare_neighborhoods(df, min_count=3):
+    counts = df["neighborhood"].value_counts()
+    rare = counts[counts < min_count].index
+    df["neighborhood"] = df["neighborhood"].apply(lambda n: "Other" if n in rare else n)
+    return df
+
+
 def load_and_clean(path="data/listings.csv", output_path="data/listings_clean.csv"):
     df = pd.read_csv(path)
 
@@ -53,12 +68,16 @@ def load_and_clean(path="data/listings.csv", output_path="data/listings_clean.cs
 
     df["neighborhood"] = df["neighborhood"].apply(normalize_neighborhood)
     df["area_m2"] = df.apply(lambda row: clean_area(row["area_m2"], row["beds"]), axis=1)
+    df["baths"] = df["baths"].apply(clean_baths)
 
     df["garages"] = df["garages"].fillna(0)
 
     before_dropna = len(df)
     df = df.dropna(subset=["beds", "baths"])
     print(f"Dropped {before_dropna - len(df)} rows missing beds/baths")
+
+    df = group_rare_neighborhoods(df)
+    print(f"Neighborhoods after grouping rare ones into 'Other': {df['neighborhood'].nunique()}")
 
     df.to_csv(output_path, index=False)
     print(f"Saved cleaned dataset to {output_path} ({len(df)} rows)")
