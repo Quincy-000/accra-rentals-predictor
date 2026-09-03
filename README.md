@@ -2,7 +2,7 @@
 
 Predict monthly rent for apartments in Accra from listing features (beds, baths, garages, neighborhood, furnished status).
 
-**Pipeline:** live scraper → cleaning → baseline models. Currently at **Milestone 2 (modelling)**.
+**Pipeline:** live scraper → cleaning → baseline models → tested + CI. Currently at **Milestone 3 (tests + CI green)**.
 
 ## Dataset
 
@@ -33,19 +33,24 @@ RandomForest and GradientBoosting underperformed plain linear regression here, m
 
 ### Cross-validation caught a real data bug that a single train/test split missed
 
-The 80/20 split alone looked fine (R² = 0.522 originally); it took 5-fold CV producing an impossible R² (Linear Regression R² = −55,176 on one fold) to surface the corruption: a Kwabenya listing with `baths = 9000` — identical to its `price_ghs_month` of 9000, so the price almost certainly got typed into the bathroom field at the source. That single row exploded the linear model's coefficients when isolated in a fold. `clean_baths()` now caps baths at 10 and treats anything above as invalid. A legitimate example of validation rigor paying off, not just a formality.
+The 80/20 split alone looked fine (R² = 0.522 originally); it took 5-fold CV producing an impossible R² (Linear Regression R² = −55,176 on one fold) to surface the corruption: a Kwabenya listing with `baths = 9000` — identical to its `price_ghs_month` of 9000, so the price almost certainly got typed into the bathroom field at the source. That single row exploded the linear model's coefficients when isolated in a fold. `clean_baths()` now flags anything above 10 as invalid and drops the row. A legitimate example of validation rigor paying off, not just a formality.
+
+### Tests are only as good as the code they import
+
+My first pass at a sanity test for `train.py` rebuilt the model pipeline inline instead of importing the module — it passed, but it was testing a copy. If the real preprocessing in `train.py` broke later, that test would stay green and tell me nothing. The fix was structural: wrap `train.py` in a `main()` guard and expose a `build_preprocessor()` function, then have the test import that. Same assertions, but now they exercise the shipped code — a regression in the real pipeline fails the suite. Lesson I'll keep: when a test can't import the code it claims to cover, that's a smell in the module — fix the module, don't copy it.
 
 ## Run it
 
 ```bash
 python model/train.py          # cleans data + trains + cross-validates
 python model/clean.py          # just regenerate the clean dataset
+python -m pytest               # full suite (58 tests, fixture-based — no live site needed)
 ```
 
-Requires `pandas`, `scikit-learn`, `numpy` (use `./venv/bin/python` if the repo venv exists).
+Dependencies pinned in `requirements.txt` (pandas, scikit-learn, selenium, pytest — use `./venv/bin/python` if the repo venv exists).
 
 ## Roadmap
 
 - [x] Milestone 1: live scraper, fixture tests, 226-row dataset
 - [x] Milestone 2: cleaning pipeline + baseline models (LR wins)
-- [ ] Milestone 3: feature work / hyperparameter tuning / price bands
+- [x] Milestone 3: regression tests for every cleaning rule + GitHub Actions CI (58 tests, green)
